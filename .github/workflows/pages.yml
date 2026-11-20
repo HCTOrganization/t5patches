@@ -1,0 +1,73 @@
+name: deploy to pages
+
+on:
+    push:
+        branches: ["main"]
+
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+concurrency:
+    group: "pages"
+    cancel-in-progress: true
+
+jobs:
+    deploy:
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            # `cargo install` builds in a throwaway directory, so it
+            # recompiles the bundler and every dependency on each run.
+            # Instead, cache the compiled binary keyed on the bundler
+            # repo's current commit: the build only happens when the
+            # tool itself changes.
+            - id: trill-patch-rev
+              run: echo "rev=$(git ls-remote https://github.com/HCTOrganization/t5patches HEAD | cut -f1)" >> "$GITHUB_OUTPUT"
+
+            - uses: actions/cache@v4
+              id: trill-patch-bin
+              with:
+                  path: ~/.cargo/bin/trill-patch
+                  key: trill-patch-bin-${{ runner.os }}-${{ runner.arch }}-${{ steps.trill-patch-rev.outputs.rev }}
+
+            # Crate sources, only worth restoring on the runs that
+            # actually build.
+            - uses: actions/cache@v4
+              if: steps.trill-patch-bin.outputs.cache-hit != 'true'
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                  key: trill-patch-${{ hashFiles('.github/workflows/pages.yml') }}
+
+            # The bundler lives in its own repo (HCTOrganization/trill-patch),
+            # so we install it straight from git — no checkout of the
+            # trill tree, no submodules. `--locked` uses that repo's
+            # committed Cargo.lock for a reproducible build.
+            - run: cargo install --git https://github.com/HCTOrganization/trill-patch --features cli --locked
+              if: steps.trill-patch-bin.outputs.cache-hit != 'true'
+
+            # Every package must be well-formed before anything ships:
+            # a package that fails to open here would fail to open in
+            # the app, and the index would happily list it.
+            - run: trill-patch validate $(find . -name '*.t5patch' | sort)
+
+            # Builds index.json — the only file clients poll — and
+            # extracts each package's README beside it so the app can
+            # show one before downloading the package itself.
+            - run: trill-patch index . --readmes
+
+            - uses: actions/upload-pages-artifact@v3
+              with:
+                  path: "."
+
+            - uses: actions/deploy-pages@v4
+              id: deployment
