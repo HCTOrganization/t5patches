@@ -15,14 +15,14 @@ directory named after your patch:
 
 ```
 bn6_allstars/
-├── bn6_allstars-1.0.0.trillpatch
-└── bn6_allstars-1.1.0.trillpatch
+├── bn6_allstars-1.0.0.t5patch
+└── bn6_allstars-1.1.0.t5patch
 ```
 
 Installing the tool:
 
 ```sh
-cargo install --git https://github.com/HCTOrganization/trill-patch --features cli
+cargo install --git https://github.com/HCTOrganization/trill --branch 5.0.4-new trill-patch --features cli
 ```
 
 ### Building your package
@@ -43,7 +43,7 @@ my-patch/
 trill-patch pack my-patch/ -o bn6_allstars/
 ```
 
-The output is named `<name>-<version>.trillpatch` from the manifest, so
+The output is named `<name>-<version>.t5patch` from the manifest, so
 you don't choose the filename. `trill-patch validate` checks a package
 (or a source directory) without building anything, and `trill-patch
 info` prints what a package contains.

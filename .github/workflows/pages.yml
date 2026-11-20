@@ -30,7 +30,7 @@ jobs:
             # repo's current commit: the build only happens when the
             # tool itself changes.
             - id: trill-patch-rev
-              run: echo "rev=$(git ls-remote https://github.com/HCTOrganization/t5patches HEAD | cut -f1)" >> "$GITHUB_OUTPUT"
+              run: echo "rev=$(git ls-remote https://github.com/HCTOrganization/trill refs/heads/5.0.4-new | cut -f1)" >> "$GITHUB_OUTPUT"
 
             - uses: actions/cache@v4
               id: trill-patch-bin
@@ -48,11 +48,11 @@ jobs:
                       ~/.cargo/git
                   key: trill-patch-${{ hashFiles('.github/workflows/pages.yml') }}
 
-            # The bundler lives in its own repo (HCTOrganization/trill-patch),
-            # so we install it straight from git — no checkout of the
-            # trill tree, no submodules. `--locked` uses that repo's
+            # The bundler is a workspace member of the trill repo
+            # (vendor/trill-patch), so we install it straight from git at
+            # the branch that carries it. `--locked` uses trill's
             # committed Cargo.lock for a reproducible build.
-            - run: cargo install --git https://github.com/HCTOrganization/trill-patch --features cli --locked
+            - run: cargo install --git https://github.com/HCTOrganization/trill --branch 5.0.4-new trill-patch --features cli --locked
               if: steps.trill-patch-bin.outputs.cache-hit != 'true'
 
             # Every package must be well-formed before anything ships:
